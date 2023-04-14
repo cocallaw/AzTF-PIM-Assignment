@@ -26,17 +26,18 @@ variable "role_definition_name" {
 
 variable "resource_group_name" {
   type = string
+  default = "rg1"
 }
 
 variable "parent_id" {
   type = string
-  default = "/subscriptions/e380d55c-263f-4af2-8587-0bdd61044290/resourcegroups/rg1"
+  default = ""
 }
 
 // Allowed values: AdminAssign, AdminExtend, AdminRemove, AdminRenew, AdminUpdate, SelfActivate, SelfDeactivate, SelfExtend, SelfRenew
 variable "request_type" {
   type    = string
-  default = "AdminUpdate"
+  default = "AdminAssign"
 }
 
 data "azurerm_role_definition" "role" {
@@ -78,7 +79,7 @@ resource "random_uuid" "eligible_schedule_request_id" {
     requestType         = var.request_type
     startDateTime       = "${formatdate("YYYY-MM-DD", time_rotating.eligible_schedule_request_start_date.id)}T${formatdate("HH:mm:ss.0000000+02:00", time_rotating.eligible_schedule_request_start_date.id)}"
     duration            = "P${tostring(var.assignment_days)}D"
-    resource_group_name = var.resource_group_name
+    resource_group_name = azurerm_resource_group.rg1.name
   }
 }
 
