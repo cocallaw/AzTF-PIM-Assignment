@@ -31,7 +31,7 @@ variable "resource_group_name" {
 
 variable "parent_id" {
   type = string
-  default = ""
+  default = "/subscriptions/e380d55c-263f-4af2-8587-0bdd61044290/resourcegroups/rg1"
 }
 
 // Allowed values: AdminAssign, AdminExtend, AdminRemove, AdminRenew, AdminUpdate, SelfActivate, SelfDeactivate, SelfExtend, SelfRenew
