@@ -19,9 +19,15 @@ provider "azurerm" {
   features {}
 }
 
+data azurerm_subscription "current" { }
+
 variable "role_definition_name" {
   type    = string
   default = "contributor"
+}
+
+data "azurerm_role_definition" "role" {
+  name = var.role_definition_name
 }
 
 variable "resource_group_name" {
@@ -29,19 +35,10 @@ variable "resource_group_name" {
   default = "rg1"
 }
 
-variable "parent_id" {
-  type = string
-  default = "/subscriptions/e380d55c-263f-4af2-8587-0bdd61044290/resourcegroups/rg1"
-}
-
 // Allowed values: AdminAssign, AdminExtend, AdminRemove, AdminRenew, AdminUpdate, SelfActivate, SelfDeactivate, SelfExtend, SelfRenew
 variable "request_type" {
   type    = string
-  default = "AdminAssign"
-}
-
-data "azurerm_role_definition" "role" {
-  name = var.role_definition_name
+  default = "AdminUpdate"
 }
 
 variable "assignment_days" {
@@ -86,7 +83,7 @@ resource "random_uuid" "eligible_schedule_request_id" {
 resource "azapi_resource" "pim_assign_01" {
   type      = "Microsoft.Authorization/roleEligibilityScheduleRequests@2022-04-01-preview"
   name      = random_uuid.eligible_schedule_request_id.id
-  parent_id = var.parent_id
+  parent_id = "${tostring(data.azurerm_subscription.current.id)}/resourceGroups/${azurerm_resource_group.rg1.name}"
   body = jsonencode({
     properties = {
       justification    = "Testing PIM Assignment"
