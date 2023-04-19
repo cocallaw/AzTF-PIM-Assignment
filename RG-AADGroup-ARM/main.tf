@@ -21,6 +21,7 @@ variable "resource_group_name" {
 
 variable "role_definition_name" {
   type = string
+  default = "Contributor"
 }
 
 // Allowed values: AdminAssign, AdminExtend, AdminRemove, AdminRenew, AdminUpdate, SelfActivate, SelfDeactivate, SelfExtend, SelfRenew
