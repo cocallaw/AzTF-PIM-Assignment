@@ -1,0 +1,103 @@
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3"
+    }
+    azapi = {
+      source  = "azure/azapi"
+      version = "~> 1"
+    }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 2"
+    }
+  }
+}
+
+provider "azurerm" {
+  features {}
+}
+
+data azurerm_subscription "current" { }
+
+variable "role_definition_name" {
+  type    = string
+  default = "contributor"
+}
+
+data "azurerm_role_definition" "role" {
+  name = var.role_definition_name
+}
+
+variable "resource_group_name" {
+  type = string
+  default = "rg1"
+}
+
+// Allowed values: AdminAssign, AdminExtend, AdminRemove, AdminRenew, AdminUpdate, SelfActivate, SelfDeactivate, SelfExtend, SelfRenew
+variable "request_type" {
+  type    = string
+  default = "AdminUpdate"
+}
+
+variable "assignment_days" {
+  type    = number
+  default = 365
+}
+
+// Allowed values: AfterDateTime, AfterDuration, NoExpiration
+variable "assignment_expiration_type" {
+  default = "AfterDuration"
+}
+
+variable "user_principal_name" {
+  type = string
+  default = ""
+}
+
+data "azuread_user" "user" {
+  user_principal_name = var.user_principal_name
+}
+
+resource "azurerm_resource_group" "rg1" {
+  name     = var.resource_group_name
+  location = "eastus"
+}
+
+resource "time_rotating" "eligible_schedule_request_start_date" {
+  rotation_days = floor(var.assignment_days / 2)
+}
+
+// Generate a new guid for the eligible schedule request whever principalId, roleDefinitionId or requestType changes
+resource "random_uuid" "eligible_schedule_request_id" {
+  keepers = {
+    principalId         = azurerm_resource_group.rg1.id
+    roleDefinitionId    = data.azurerm_role_definition.role.id
+    requestType         = var.request_type
+    startDateTime       = "${formatdate("YYYY-MM-DD", time_rotating.eligible_schedule_request_start_date.id)}T${formatdate("HH:mm:ss.0000000+02:00", time_rotating.eligible_schedule_request_start_date.id)}"
+    duration            = "P${tostring(var.assignment_days)}D"
+    resource_group_name = azurerm_resource_group.rg1.name
+  }
+}
+
+resource "azapi_resource" "pim_assign_01" {
+  type      = "Microsoft.Authorization/roleEligibilityScheduleRequests@2022-04-01-preview"
+  name      = random_uuid.eligible_schedule_request_id.id
+  parent_id = "${tostring(data.azurerm_subscription.current.id)}/resourceGroups/${azurerm_resource_group.rg1.name}"
+  body = jsonencode({
+    properties = {
+      justification    = "Testing PIM Assignment"
+      principalId      = data.azuread_user.user.object_id
+      requestType      = var.request_type
+      roleDefinitionId = data.azurerm_role_definition.role.id
+      scheduleInfo = {
+        expiration = {
+          duration = "P${tostring(var.assignment_days)}D"
+          type     = var.assignment_expiration_type
+        }
+        startDateTime = "${formatdate("YYYY-MM-DD", time_rotating.eligible_schedule_request_start_date.id)}T${formatdate("HH:mm:ss.0000000+02:00", time_rotating.eligible_schedule_request_start_date.id)}"
+      }
+    }
+  })
+}
